@@ -1,0 +1,377 @@
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
+
+MainWindow::MainWindow(QWidget *parent) :
+    QMainWindow(parent),
+    O(this),ui(new Ui::MainWindow)
+{
+    ui->setupUi(this);
+    connect(&O,SIGNAL(notifyObservers1()), this, SLOT(reshow1()));
+    connect(&O,SIGNAL(notifyObservers2()), this, SLOT(reshow2()));
+    connect(&O,SIGNAL(notifyObservers3()), this, SLOT(reshow3()));
+}
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+
+void MainWindow::reshow1(){
+        QTableViewModel1* model=new QTableViewModel1;
+        model->populate(&O.pat);
+        ui->tableView->setModel(model);
+        ui->tableView->sortByColumn(Qt::AscendingOrder);
+}
+
+void MainWindow::reshow2(){
+        QTableViewModel2* model=new QTableViewModel2;
+        model->populate(&O.d);
+        ui->tableView->setModel(model);
+        ui->tableView->sortByColumn(Qt::AscendingOrder);
+}
+
+void MainWindow::reshow3(){
+        QTableViewModel3* model=new QTableViewModel3;
+        model->populate(&O.disp);
+        ui->tableView->setModel(model);
+        ui->tableView->sortByColumn(Qt::AscendingOrder);
+}
+
+void MainWindow::on_add_patient_clicked()
+{
+    if((ui->telephone_line->text()=="")&&(O.pat.isEmpty())){
+        patient tmp1("Иванов Иван","Почечная недостаточность","Невский 2","1231234567","59","Хирургия");
+        patient tmp2("Панов Александр","Перелом","Ленина 23","3211234567","19","Травмы");
+        patient tmp3("Кузнецов Антон","Гастрит","Жукова 12","5551234567","29","ЖКТ");
+        O.pat.push_back(tmp1);
+        O.pat.push_back(tmp2);
+        O.pat.push_back(tmp3);
+        O.update(1);
+        return;
+    }else if(ui->telephone_line->text()==""){
+        return;
+    }
+    if(O.pat.find_by_tel_num(ui->telephone_line->text())){
+        ui->telephone_line->setText("Пациент с данным телефоном уже зарегистрирован");
+        return;
+    }
+    patient tmp(ui->FNS_line->text(),ui->diagnosis_line->text(),ui->address_line->text(),ui->telephone_line->text(),ui->years_line->text(),ui->department->currentText());
+    ui->FNS_line->clear();
+    ui->diagnosis_line->clear();
+    ui->address_line->clear();
+    ui->telephone_line->clear();
+    ui->years_line->clear();
+    O.pat.push_back(tmp);
+    reshow1();
+    O.update(1);
+}
+
+void MainWindow::on_add_drug_clicked()
+{
+    if((ui->code_drug_line->text()=="")&&(O.d.isEmpty())){
+        drug tmp1("Антибиотик","123-456","12","12.05.2022","1000");
+        drug tmp2("Витамины","777-888","150","05.01.2019","200");
+        drug tmp3("Обезболивающее","111-987","2","19.06.2019","2500");
+        O.d.push_back(tmp1);
+        O.d.push_back(tmp2);
+        O.d.push_back(tmp3);
+        O.update(2);
+        return;
+    }
+    if(O.d.find_by_code_drug(ui->code_drug_line->text())){
+        int t=ui->count_line->text().toInt();
+        O.d.add_count_by_cd(ui->code_drug_line->text(),t);
+        O.update(2);
+        ui->title_line->clear();
+        ui->code_drug_line->clear();
+        ui->count_line->clear();
+        ui->date_line->clear();
+        return;
+    }
+    drug tmp(ui->title_line->text(),ui->code_drug_line->text(),ui->count_line->text(),ui->date_line->text(),ui->cost_line->text());
+    ui->title_line->clear();
+    ui->code_drug_line->clear();
+    ui->count_line->clear();
+    ui->date_line->clear();
+    ui->cost_line->clear();
+    O.d.push_back(tmp);
+    O.update(2);
+}
+
+bool check_date(QString s){
+    if(s.length()!=10){
+        return false;
+    }
+    QString t;
+    int day, month, year;
+    for (int i = 0; i < 10; i++) {
+        if ((i == 2) || (i == 5)) {
+            if (s.at(i) != '.') {
+                return false;
+            }
+        }
+        else {
+            if ((s.at(i) < 48) || (s.at(i) > 57)) {
+                return false;
+            }
+        }
+    }
+    t =s.left(2);
+    day = t.toInt();
+    t = s.mid(3,2);
+    month = t.toInt();
+    t = s.mid(6,4);
+    year = t.toInt();
+    if (month > 12) {
+        return false;
+    }
+    if (((day > 30) && (month % 2 == 0)&&(month<8))||((day>30)&&(month%2==1)&&(month>7)) || (day > 31)||((month==2)&&(day>29)&&(year%4==0)) || ((month == 2) && (day > 28) && (year % 4 == 1))) {
+        return false;
+    }
+    return true;
+
+}
+
+void MainWindow::on_add_disp_clicked()
+{
+    /*if((ui->code_drug_disp_line->text()=="")&&(O.disp.isEmpty())){
+        int n1=C.getCost(O.pat.pat_by_tel("1231234567"));
+        int n2=C.getCost(O.pat.pat_by_tel("3211234567"));
+        int n3=C.getCost(O.pat.pat_by_tel("5551234567"));
+        n1+=O.d.drug_by_code("123-456").get_cost().toInt();
+        n2+=O.d.drug_by_code("777-888").get_cost().toInt();
+        n1+=O.d.drug_by_code("111-987").get_cost().toInt();
+        dispens tmp1("1","1231234567","123-456","12.05.2023",QString::number(n1));
+        dispens tmp2("2","3211234567","777-888","15.05.2023",QString::number(n2));
+        dispens tmp3("3","5551234567","111-987","15.05.2023",QString::number(n3));
+        O.disp.push_back(tmp1);
+        O.d.add_count_by_cd("123-456",-1);
+        O.disp.push_back(tmp2);
+        O.d.add_count_by_cd("777-888",-1);
+        O.disp.push_back(tmp3);
+        O.d.add_count_by_cd("111-987",-1);
+        O.update(3);
+        return;
+    }*/
+    QString cd=ui->code_drug_disp_line->text();
+    if(!O.d.find_by_code_drug(cd)){
+        ui->code_drug_disp_line->setText("Не найден препарат");
+        return;
+    }else if(!O.d.check_count(cd)){
+        ui->code_drug_disp_line->setText("Количество препарата меньше 1");
+        return;
+    }
+    QString tel=ui->tel_disp_line->text();
+    if(!O.pat.find_by_tel_num(tel)){
+        ui->tel_disp_line->setText("Не найден пациент");
+        return;
+    }
+    QString dat=ui->date_disp_line->text();
+    if(!check_date(dat)){
+        ui->date_disp_line->setText("Не корректная дата");
+        return;
+    }
+    QString n=QString::number(O.disp.size()+1);
+    int cost;
+    if(O.disp.find_by_tel(tel)){
+        dispensing d1=O.disp.find(tel,1);
+        int max=0;
+        for(int i=0;i<d1.size();++i){
+            max=(max>d1.at(i).get_cost().toInt())?max:d1.at(i).get_cost().toInt();
+        }
+    }else{
+        cost=C.getCost(O.pat.pat_by_tel(tel));
+    }
+    cost+=O.d.drug_by_code(cd).get_cost().toInt();
+    dispens tmp(n,tel,cd,dat,QString::number(cost));
+    O.disp.push_back(tmp);
+    O.d.add_count_by_cd(cd,-1);
+    ui->date_disp_line->clear();
+    ui->tel_disp_line->clear();
+    ui->code_drug_disp_line->clear();
+    O.update(3);
+}
+
+void MainWindow::on_show_patients_clicked()
+{
+    O.update(1);
+}
+
+void MainWindow::on_show_drugs_clicked()
+{
+    O.update(2);
+}
+
+void MainWindow::on_show_dispensing_clicked()
+{
+    O.update(3);
+}
+
+void MainWindow::on_delete_patient_clicked()
+{
+    QString tel=ui->telephone_line->text();
+    if(O.disp.find_by_tel(tel)){
+        ui->telephone_line->setText("Пациент не оплатил лечение");
+        return;
+    }
+    if(O.pat.find_by_tel_num(tel)){
+    O.pat.delete_patient(tel);
+    }else{
+        ui->telephone_line->setText("Пациент не найден");
+        ui->FNS_line->clear();
+        ui->diagnosis_line->clear();
+        ui->address_line->clear();
+        ui->years_line->clear();
+        return;
+    }
+    ui->FNS_line->clear();
+    ui->telephone_line->clear();
+    ui->diagnosis_line->clear();
+    ui->address_line->clear();
+    ui->years_line->clear();
+    O.update(1);
+}
+
+void MainWindow::on_delete_drug_clicked()
+{
+    QString code=ui->code_drug_line->text();
+    if(O.disp.find_by_code_drug(code)){
+         ui->code_drug_line->setText("Лекарство выдано пациенту");
+         return;
+    }
+    if(O.d.find_by_code_drug(code)){
+    O.d.delete_drug(code);
+    }else{
+        ui->code_drug_line->setText("Лекарство не найдено");
+        ui->count_line->clear();
+        ui->title_line->clear();
+        ui->date_line->clear();
+        return;
+    }
+    ui->code_drug_line->clear();
+    ui->count_line->clear();
+    ui->title_line->clear();
+    ui->date_line->clear();
+    O.update(2);
+}
+
+void MainWindow::on_delete_dispens_clicked()
+{
+    QString code=ui->code_drug_disp_line->text();
+    QString tel=ui->tel_disp_line->text();
+    QString date=ui->date_disp_line->text();
+    if(O.disp.delete_dispens(tel,code,date)){
+        ui->code_drug_line->clear();
+        ui->count_line->clear();
+        ui->title_line->clear();
+        ui->date_line->clear();
+        O.update(3);
+    }else{
+        ui->tel_disp_line->setText("Выдача не найдена");
+        return;
+    }
+}
+
+void MainWindow::on_find_FNS_clicked()
+{
+    p=O.pat.find(ui->FNS_line->text(),1);
+    QTableViewModel1* model=new QTableViewModel1;
+    model->populate(&p);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_diagnosis_clicked()
+{
+    p=O.pat.find(ui->diagnosis_line->text(),2);
+    QTableViewModel1* model=new QTableViewModel1;
+    model->populate(&p);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_address_clicked()
+{
+    p=O.pat.find(ui->address_line->text(),3);
+    QTableViewModel1* model=new QTableViewModel1;
+    model->populate(&p);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_years_clicked()
+{
+    p=O.pat.find(ui->years_line->text(),5);
+    QTableViewModel1* model=new QTableViewModel1;
+    model->populate(&p);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_tel_clicked()
+{
+    p=O.pat.find(ui->telephone_line->text(),4);
+    QTableViewModel1* model=new QTableViewModel1;
+    model->populate(&p);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_title_clicked()
+{
+    dru=O.d.find(ui->title_line->text(),1);
+    QTableViewModel2* model=new QTableViewModel2;
+    model->populate(&dru);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_code_clicked()
+{
+    dru=O.d.find(ui->code_drug_line->text(),2);
+    QTableViewModel2* model=new QTableViewModel2;
+    model->populate(&dru);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_count_clicked()
+{
+    dru=O.d.find(ui->count_line->text(),3);
+    QTableViewModel2* model=new QTableViewModel2;
+    model->populate(&dru);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_date_clicked()
+{
+    dru=O.d.find(ui->date_line->text(),4);
+    QTableViewModel2* model=new QTableViewModel2;
+    model->populate(&dru);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_tel_disp_clicked()
+{
+    di=O.disp.find(ui->tel_disp_line->text(),1);
+    QTableViewModel3* model=new QTableViewModel3;
+    model->populate(&di);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_code_disp_clicked()
+{
+    di=O.disp.find(ui->code_drug_disp_line->text(),2);
+    QTableViewModel3* model=new QTableViewModel3;
+    model->populate(&di);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_date_disp_clicked()
+{
+    di=O.disp.find(ui->date_disp_line->text(),3);
+    QTableViewModel3* model=new QTableViewModel3;
+    model->populate(&di);
+    ui->tableView->setModel(model);
+}
+
+void MainWindow::on_find_cost_clicked()
+{
+    dru=O.d.find(ui->cost_line->text(),5);
+    QTableViewModel2* model=new QTableViewModel2;
+    model->populate(&dru);
+    ui->tableView->setModel(model);
+}
